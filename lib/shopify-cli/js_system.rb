@@ -81,18 +81,26 @@ module ShopifyCli
     #
     #   ShopifyCli::JsSystem.new(ctx: ctx).call(yarn: ['install', '--silent'], npm: ['install', '--no-audit'])
     #
-    def call(yarn:, npm:)
-      yarn? ? call_command(yarn, YARN_CORE_COMMAND) : call_command(npm, NPM_CORE_COMMAND)
+    def call(yarn:, npm:, with_capture: false)
+      yarn? ? call_command(yarn, YARN_CORE_COMMAND, with_capture) : call_command(npm, NPM_CORE_COMMAND, with_capture)
     end
 
     private
 
-    def call_command(command, core_command)
+    def call_command(command, core_command, with_capture)
       if command.is_a?(String) || command.is_a?(Array)
-        CLI::Kit::System.system(core_command, *command, chdir: ctx.root).success?
+        with_capture ? call_with_capture(command, core_command) : call_without_capture(command, core_command)
       else
         command.call
       end
+    end
+
+    def call_with_capture(command, core_command)
+      CLI::Kit::System.capture2(core_command, *command, chdir: ctx.root)
+    end
+
+    def call_without_capture(command, core_command)
+      CLI::Kit::System.system(core_command, *command, chdir: ctx.root).success?
     end
   end
 end
