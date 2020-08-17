@@ -39,7 +39,6 @@ module Extension
 
       property! :setup, accepts: Features::ArgoSetup
       property! :renderer_package, accepts: String
-      # [ARGO_CHECKOUT_RENDERER_PACKAGE, ARGO_ADMIN_RENDERER_PACKAGE]
 
       def create(directory_name, identifier, context)
         setup.call(directory_name, identifier, context)
@@ -73,10 +72,10 @@ module Extension
         elsif renderer_package == ARGO_CHECKOUT_RENDERER_PACKAGE
           result = result.to_json
           packages = result.split('\n')
-          packages.each_with_index do |package, index|
-            if package.match(/argo-checkout@/)
+          packages.each do |package|
+            if package.match(/#{renderer_package}@/)
               values = package.split('@')
-              version = values[index]
+              version = values[2]
             end
           end
         end

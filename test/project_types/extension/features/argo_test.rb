@@ -17,14 +17,14 @@ module Extension
         @git_template = 'https://www.github.com/fake_template.git'
         @argo = Argo.new(
           setup: Features::ArgoSetup.new(git_template: @git_template),
-          renderer_package: '@shopify/argo-admin'
+          renderer_package: '@fake_renderer_package'
         )
         @identifier = 'FAKE_ARGO_TYPE'
         @directory = 'fake_directory'
       end
 
       def test_config_aborts_with_error_if_script_file_doesnt_exist
-        @argo.stubs(:extract_argo_renderer_version).returns('x.x.x')
+        @argo.stubs(:extract_argo_renderer_version).returns('0.0.1')
         error = assert_raises ShopifyCli::Abort do
           @argo.config(@context)
         end
@@ -33,7 +33,7 @@ module Extension
       end
 
       def test_config_aborts_with_error_if_script_serialization_fails
-        @argo.stubs(:extract_argo_renderer_version).returns('x.x.x')
+        @argo.stubs(:extract_argo_renderer_version).returns('0.0.1')
         File.stubs(:exist?).returns(true)
         Base64.stubs(:strict_encode64).raises(IOError)
 
@@ -42,7 +42,7 @@ module Extension
       end
 
       def test_config_aborts_with_error_if_file_read_fails
-        @argo.stubs(:extract_argo_renderer_version).returns('x.x.x')
+        @argo.stubs(:extract_argo_renderer_version).returns('0.0.1')
         File.stubs(:exist?).returns(true)
         File.any_instance.stubs(:read).raises(IOError)
 
@@ -52,7 +52,7 @@ module Extension
 
       def test_config_encodes_script_into_context_if_it_exists
         with_stubbed_script(@context, Argo::SCRIPT_PATH) do
-          @argo.stubs(:extract_argo_renderer_version).returns('x.x.x')
+          @argo.stubs(:extract_argo_renderer_version).returns('0.0.1')
           config = @argo.config(@context)
 
           assert_includes config.keys, :serialized_script
@@ -72,25 +72,46 @@ module Extension
         assert_equal(argo.setup.git_template, git_checkout_template)
       end
 
-      def test_version_renderer_returns_argo_renderer_package_version
+      def test_version_renderer_returns_argo_admin_renderer_package_version
         result = '{
              "name": "fake-extension-template",
              "version": "0.1.0",
              "dependencies": {
-               "@shopify/argo-admin": {
+               "@fake_renderer_package": {
                  "version": "0.4.0",
-                 "from": "@shopify/argo-admin@latest",
+                 "from": "@fake_renderer_package@latest",
                  "resolved": "https://test_example.com.tgz"
                }
               }
             }'
-        hash_contents = JSON.parse(result)
-        expected_version = hash_contents["dependencies"]["@shopify/argo-admin"]["version"]
         with_stubbed_script(@context, Argo::SCRIPT_PATH) do
           ShopifyCli::JsSystem.any_instance.stubs(:call).returns(result)
+          old = Argo.const_get(:ARGO_ADMIN_RENDERER_PACKAGE)
+          Argo.send(:remove_const, :ARGO_ADMIN_RENDERER_PACKAGE)
+          Argo.const_set(:ARGO_ADMIN_RENDERER_PACKAGE, '@fake_renderer_package')
           config = @argo.config(@context)
-          assert_includes config.keys, :renderer_version
-          assert_equal expected_version, config[:renderer_version]
+          Argo.send(:remove_const, :ARGO_ADMIN_RENDERER_PACKAGE)
+          Argo.const_set(:ARGO_ADMIN_RENDERER_PACKAGE, old)
+          assert_includes(config.keys, :renderer_version)
+          assert_match(/^([0-9]\d*)\.([0-9]\d*)\.([0-9]\d*)$/, config[:renderer_version])
+        end
+      end
+
+      def test_version_renderer_returns_argo_checkout_renderer_package_version
+        result = 'yarn list v1.22.4
+        ├─ @fake_renderer_package-react@0.3.4
+        └─ @fake_renderer_package@0.3.4
+        ✨  Done in 0.42s.'
+        with_stubbed_script(@context, Argo::SCRIPT_PATH) do
+          ShopifyCli::JsSystem.any_instance.stubs(:call).returns(result)
+          old = Argo.const_get(:ARGO_CHECKOUT_RENDERER_PACKAGE)
+          Argo.send(:remove_const, :ARGO_CHECKOUT_RENDERER_PACKAGE)
+          Argo.const_set(:ARGO_CHECKOUT_RENDERER_PACKAGE, '@fake_renderer_package')
+          config = @argo.config(@context)
+          Argo.send(:remove_const, :ARGO_CHECKOUT_RENDERER_PACKAGE)
+          Argo.const_set(:ARGO_CHECKOUT_RENDERER_PACKAGE, old)
+          assert_includes(config.keys, :renderer_version)
+          assert_match(/^([0-9]\d*)\.([0-9]\d*)\.([0-9]\d*)$/, config[:renderer_version])
         end
       end
     end
