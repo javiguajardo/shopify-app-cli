@@ -96,7 +96,7 @@ module ShopifyCli
     end
 
     def call_with_capture(command, core_command)
-      CLI::Kit::System.capture2(core_command, *command, chdir: ctx.root)
+      CLI::Kit::System.capture3(core_command, *command, chdir: ctx.root)
     end
 
     def call_without_capture(command, core_command)

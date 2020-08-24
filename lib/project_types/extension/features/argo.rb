@@ -10,11 +10,14 @@ module Extension
 
       GIT_ADMIN_TEMPLATE = 'https://github.com/Shopify/argo-admin-template.git'
       GIT_CHECKOUT_TEMPLATE = 'https://github.com/Shopify/argo-checkout-template.git'
+
       ARGO_CHECKOUT_RENDERER_PACKAGE = '@shopify/argo-checkout'
       ARGO_ADMIN_RENDERER_PACKAGE = '@shopify/argo-admin'
+      ARGO_RENDERER_PACKAGES = [ARGO_ADMIN_RENDERER_PACKAGE, ARGO_CHECKOUT_RENDERER_PACKAGE]
+
       LIST_COMMAND = %w(list).freeze
-      NPM_LIST_JSON_PARAMETER = %w(--json --depth=%s)
-      YARN_LIST_PATTERN_PARAMETER = %w(--pattern).freeze
+      NPM_LIST_PARAMETERS = %w(--json --prod=true --depth=0).freeze
+      YARN_LIST_PARAMETERS = %w(--pattern).freeze
 
       SCRIPT_PATH = %w(build main.js).freeze
 
@@ -38,7 +41,7 @@ module Extension
       end
 
       property! :setup, accepts: Features::ArgoSetup
-      property! :renderer_package, accepts: String
+      property! :renderer_package, accepts: ARGO_RENDERER_PACKAGES
 
       def create(directory_name, identifier, context)
         setup.call(directory_name, identifier, context)
@@ -61,17 +64,19 @@ module Extension
 
       def extract_argo_renderer_version(context)
         js_system = ShopifyCli::JsSystem.new(ctx: context)
-        result, _stat = js_system.call(
-          yarn: ['list', '--pattern', '@shopify/argo-checkout'],
-          npm: ['list', '@shopify/argo-admin', '--json', '--depth=0'],
+        result, error, _stat = js_system.call(
+          yarn: [LIST_COMMAND, YARN_LIST_PARAMETERS, ARGO_CHECKOUT_RENDERER_PACKAGE],
+          npm: [LIST_COMMAND, ARGO_ADMIN_RENDERER_PACKAGE, NPM_LIST_PARAMETERS],
           with_capture: true
         )
+        context.abort(
+          context.message('features.argo.dependencies.argo_renderer_package_error', error)
+        ) unless error.nil?
         if renderer_package == ARGO_ADMIN_RENDERER_PACKAGE
           hash_contents = JSON.parse(result)
           version = hash_contents["dependencies"][renderer_package]["version"]
         elsif renderer_package == ARGO_CHECKOUT_RENDERER_PACKAGE
-          result = result.to_json
-          packages = result.split('\n')
+          packages = result.to_json.split('\n')
           packages.each do |package|
             if package.match(/#{renderer_package}@/)
               values = package.split('@')

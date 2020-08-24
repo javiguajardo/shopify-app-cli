@@ -95,6 +95,7 @@ module Extension
               node_not_installed: 'Node must be installed to create this extension.',
               version_too_low: 'Your node version %s does not meet the minimum required version %s',
             },
+            argo_renderer_package_error: '%s Install the missing package and try again.',
           },
         },
       },

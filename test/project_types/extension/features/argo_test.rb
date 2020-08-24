@@ -17,7 +17,7 @@ module Extension
         @git_template = 'https://www.github.com/fake_template.git'
         @argo = Argo.new(
           setup: Features::ArgoSetup.new(git_template: @git_template),
-          renderer_package: '@fake_renderer_package'
+          renderer_package: Argo::ARGO_ADMIN_RENDERER_PACKAGE
         )
         @identifier = 'FAKE_ARGO_TYPE'
         @directory = 'fake_directory'
@@ -72,44 +72,54 @@ module Extension
         assert_equal(argo.setup.git_template, git_checkout_template)
       end
 
+      def test_config_aborts_with_error_if_extracting_the_version_of_renderer_package_fails
+        fake_script = Base64.strict_encode64("var fake={}")
+        Base64.stubs(:strict_encode64).returns(fake_script)
+        result = 'fake result'
+        error_message = 'npm ERR! missing: @shopify/argo-admin@latest, required by fake-app-extension-template@0.1.0'
+        with_stubbed_script(@context, Argo::SCRIPT_PATH) do
+          ShopifyCli::JsSystem.any_instance.stubs(:call).returns([result, error_message])
+          error = assert_raises(ShopifyCli::Abort) { @argo.config(@context) }
+          assert error
+            .message
+            .include?(@context.message('features.argo.dependencies.argo_renderer_package_error', error_message))
+        end
+      end
+
       def test_version_renderer_returns_argo_admin_renderer_package_version
         result = '{
              "name": "fake-extension-template",
              "version": "0.1.0",
              "dependencies": {
-               "@fake_renderer_package": {
+               "@shopify/argo-admin": {
                  "version": "0.4.0",
-                 "from": "@fake_renderer_package@latest",
+                 "from": "@shopify/argo-admin@latest",
                  "resolved": "https://test_example.com.tgz"
                }
               }
             }'
         with_stubbed_script(@context, Argo::SCRIPT_PATH) do
           ShopifyCli::JsSystem.any_instance.stubs(:call).returns(result)
-          old = Argo.const_get(:ARGO_ADMIN_RENDERER_PACKAGE)
-          Argo.send(:remove_const, :ARGO_ADMIN_RENDERER_PACKAGE)
-          Argo.const_set(:ARGO_ADMIN_RENDERER_PACKAGE, '@fake_renderer_package')
           config = @argo.config(@context)
-          Argo.send(:remove_const, :ARGO_ADMIN_RENDERER_PACKAGE)
-          Argo.const_set(:ARGO_ADMIN_RENDERER_PACKAGE, old)
+
           assert_includes(config.keys, :renderer_version)
           assert_match(/^([0-9]\d*)\.([0-9]\d*)\.([0-9]\d*)$/, config[:renderer_version])
         end
       end
 
       def test_version_renderer_returns_argo_checkout_renderer_package_version
+        argo = Argo.new(
+          setup: Features::ArgoSetup.new(git_template: @git_template),
+          renderer_package: Argo::ARGO_CHECKOUT_RENDERER_PACKAGE
+        )
         result = 'yarn list v1.22.4
-        ├─ @fake_renderer_package-react@0.3.4
-        └─ @fake_renderer_package@0.3.4
+        ├─ @shopify/argo-checkout-react@0.3.4
+        └─ @shopify/argo-checkout@0.3.4
         ✨  Done in 0.42s.'
         with_stubbed_script(@context, Argo::SCRIPT_PATH) do
           ShopifyCli::JsSystem.any_instance.stubs(:call).returns(result)
-          old = Argo.const_get(:ARGO_CHECKOUT_RENDERER_PACKAGE)
-          Argo.send(:remove_const, :ARGO_CHECKOUT_RENDERER_PACKAGE)
-          Argo.const_set(:ARGO_CHECKOUT_RENDERER_PACKAGE, '@fake_renderer_package')
-          config = @argo.config(@context)
-          Argo.send(:remove_const, :ARGO_CHECKOUT_RENDERER_PACKAGE)
-          Argo.const_set(:ARGO_CHECKOUT_RENDERER_PACKAGE, old)
+          config = argo.config(@context)
+
           assert_includes(config.keys, :renderer_version)
           assert_match(/^([0-9]\d*)\.([0-9]\d*)\.([0-9]\d*)$/, config[:renderer_version])
         end
