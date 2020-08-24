@@ -12,6 +12,15 @@ module Theme
         stat.success?
       end
 
+      def pull(ctx, store:, password:, themeid:)
+        stat = ctx.system(THEMEKIT,
+                          "get",
+                          "--store=#{store}",
+                          "--password=#{password}",
+                          "--themeid=#{themeid}")
+        stat.success?
+      end
+
       def serve(ctx)
         out, stat = ctx.capture2e(THEMEKIT, "open")
         ctx.puts(out)
