@@ -21,16 +21,32 @@ module Theme
           },
         },
         forms: {
+          ask_password: "Password:",
+          ask_store: "Store domain:",
           create: {
-            ask_password: "Password:",
-            ask_store: "Store domain:",
             ask_title: "Title:",
-            errors: "%s can't be blank",
             private_app: <<~APP,
               To create a new theme, Shopify App CLI needs to connect with a private app installed on your store. Visit {{underline:%s/admin/apps/private}} to create a new API key and password, or retrieve an existing password.
               If you create a new private app, ensure that it has Read and Write Theme access.",
             APP
           },
+          errors: "%s can't be blank",
+          pull: {
+            ask_theme_id: "Theme ID:",
+            private_app: <<~APP,
+              To fetch your existing themes, Shopify App CLI needs to connect with a private app installed on your store. Visit {{underline:%s/admin/apps/private}} to create a new API key and password, or retrieve an existing password.
+              If you create a new private app, ensure that it has Read and Write Theme access.",
+            APP
+          },
+        },
+        pull: {
+          help: <<~HELP,
+            Connect an existing theme in your store to Shopify App CLI. All files in the theme will be pulled into your current directory.
+            Usage: {{command:%s pull}}
+          HELP
+          pull: "Pulling theme...",
+          failed: "Couldn't pull from store",
+          pulled: "Theme from {{underline:%s}} connected to Shopify App CLI.",
         },
         serve: {
           help: <<~HELP,
